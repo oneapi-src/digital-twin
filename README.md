@@ -114,7 +114,7 @@ arguments:
   -m, --model           provide model type (lr for LinearRegression, xgb for XGBoost, 
                                             xgbh for XGBoost with hyperparameter tuning)
   -mf,  --modelfile      provide model file name to dump the trained model
-  -n n_data_len         parameter which decides data length (120,960,3240K). Provide 1,2, or 3
+  -n, n_data_len         parameter which decides data length (120,960,3240K). Provide 1,2, or 3
 ```
 
 To run with stock set-up while logging the performance to `logs`, we would run in the parent directory (after creating the appropriate environment as above):
@@ -213,7 +213,7 @@ arguments:
   -m, --model           provide model type (lr for LinearRegression, xgb for XGBoost, 
                                             xgbh for XGBoost with hyperparameter tuning)
   -mf,  --modelfile      provide model file name to dump the trained model
-  -n n_data_len         parameter which decides data length (120,960,3240K). Provide 1,2, or 3
+  -n, n_data_len         parameter which decides data length (120,960,3240K). Provide 1,2, or 3
 ```
 
 To run with Intel technologies, logging the performance to `logs`, we would run in the parent directory (after creating the appropriate environment as above):
