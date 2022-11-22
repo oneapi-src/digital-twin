@@ -62,6 +62,10 @@ Once the development exercise is complete, the final model can then be deployed 
 
 To execute the scripts provided in the reference kit, you will need to work on the Anaconda platform. Download and installation instructions for a Linux machine can be found [here](https://docs.anaconda.com/anaconda/install/linux/)
 
+> **Note**: If you beginning to explore the reference kits on client machines such as a windows laptop, go to the [Running on Windows](#running-on-windows) section to ensure you are all set and come back here
+
+> **Note**: The performance measurements were captured on Xeon based processors. The instructions will work on WSL, however some portions of the ref kits may run slower on a client machine, so utilize the flags supported to modify the epochs/batch size to run the training or inference faster. Additionally performance claims reported may not be seen on a windows based client machine.
+
 Once Anaconda is installed, clone the git repository using the following command:
 ```shell
 git clone https://www.github.com/oneapi-src/digital-twin
@@ -314,7 +318,11 @@ https://github.com/tirthajyoti/Digital-Twin/blob/main/MOSFET-1.ipynb
 
 **Operating System:**
 We recommend using an Linux OS for executing the reference solution presented here, e.g. RHEL or Ubuntu.
+### **Running on Windows**
 
+The reference kits commands are linux based, in order to run this on Windows, goto Start and open WSL and follow the same steps as running on a linux machine starting from git clone instructions. If WSL is not installed you can [install WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
+
+> **Note** If WSL is installed and not opening, goto Start ---> Turn Windows feature on or off and make sure Windows Subsystem for Linux is checked. Restart the system after enabling it for the changes to reflect.
 ## **Notes**
 
 **The dataset used here is synthetic. Intel Corporation does not own the rights to this data set and does not confer any rights to it.**
