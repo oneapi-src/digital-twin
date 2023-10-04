@@ -1,4 +1,4 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
@@ -7,6 +7,8 @@ Functions for synthetic data generation
 from itertools import product
 import pandas as pd
 import numpy as np
+import os
+
 
 
 def sub_vth(w_l, vgs, vth, temperature=300):
@@ -68,7 +70,14 @@ def data_gen(linspace_factor):
     df['vgs_bins'] = pd.cut(df['vgs'], vgs_bins, labels=vgs_labels)
     df['vth_bins'] = pd.cut(df['vth'], vth_bins, labels=vth_labels)
     df['log-leakage'] = -np.log10(df['sub-vth'])
-    return df
+    print("--------- Synthetic Dataset Overview ---------")
+    print(df.head(5))
+    print("Done ✓")
+    data_dir=os.environ.get('DATA_DIR')
+    saving_path=os.path.join(data_dir,"synthetic_data.csv")
+    df.to_csv(os.path.join(data_dir,"synthetic_data.csv"))
+    print("Data saved in: ", saving_path)
+    #return df
 
 
 def data_gen_aug(linspace_factor):
@@ -99,4 +108,11 @@ def data_gen_aug(linspace_factor):
     df['w_l_bins'] = pd.cut(df['w_l'], w_l_bins, labels=w_l_labels)
     df['vgs_bins'] = pd.cut(df['vgs'], vgs_bins, labels=vgs_labels)
     df['vth_bins'] = pd.cut(df['vth'], vth_bins, labels=vth_labels)
+    print("--------- Synthetic Dataset Overview ---------")
+    print(df.head(5))
+    print("Done ✓")
+    data_dir=os.environ.get('DATA_DIR')
+    saving_path=os.path.join(data_dir,"synthetic_data_aug.csv")
+    df.to_csv(os.path.join(data_dir,"synthetic_data_aug.csv"))
+    print("Data saved in: ", saving_path)
     return df

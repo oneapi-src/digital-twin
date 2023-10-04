@@ -1,22 +1,32 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
 Functions for training/inferencing ML models
 """
+
+from sklearnex import patch_sklearn
+patch_sklearn()
 import time
 import numpy as np
 import xgboost as xgb
 from sklearn import linear_model
 from sklearn.model_selection import GridSearchCV
+import sys
+def progressbar(it, prefix="", size=60, out=sys.stdout): # Python3.3+
+    count = len(it)
+    def show(j):
+        x = int(size*j/count)
+        print("{}[{}{}] {}/{}".format(prefix, "#"*x, "."*(size-x), j, count), 
+                end='\r', file=out, flush=True)
+    show(0)
+    for i, item in enumerate(it):
+        yield item
+        show(i+1)
+    print("\n", flush=True, file=out)
 
-def linreg(x_train, x_test, y_train, y_test, i_flag):
-    
-    # check if intel flag is on for sklearnex
-    if i_flag:
-        from sklearnex import patch_sklearn  # pylint: disable=C0415,E0401
-        patch_sklearn()
-    
+def linreg(x_train, x_test, y_train, y_test):
+       
     regr = linear_model.LinearRegression()
     train_time = []
     pred_time = []
@@ -50,7 +60,7 @@ def XGBHyper_train(x_train, y_train, params):
 
     return xgbh_train, best_grid, best_params
 
-def XGBReg_train(x_train, y_train, loop_ctr, i_flag, params=None):
+def XGBReg_train(x_train, y_train, loop_ctr, params=None):
     
     if params is None:
         params = {'n_estimators': 500, 'tree_method': 'hist'}
@@ -65,7 +75,7 @@ def XGBReg_train(x_train, y_train, loop_ctr, i_flag, params=None):
     
     return min(train_time), xgb_model
     
-def XGB_predict(x_test, y_test, xgb_model, loop_ctr, i_flag):
+def XGB_predict(x_test, y_test, xgb_model, loop_ctr):
     pred_time = []
     for _ in list(range(loop_ctr)):
 
@@ -78,7 +88,7 @@ def XGB_predict(x_test, y_test, xgb_model, loop_ctr, i_flag):
     MSE = np.square(np.subtract(y_test, y_pred)).mean()
     return y_pred, min(pred_time), MSE
 
-def XGB_predict_daal4py(x_test, y_test, xgb_model, loop_ctr, i_flag):
+def XGB_predict_daal4py(x_test, y_test, xgb_model, loop_ctr):
     pred_time = []
     import daal4py as d4p  # pylint: disable=C0415,E0401
     daal_model = d4p.get_gbt_model_from_xgboost(xgb_model.get_booster())
@@ -92,16 +102,14 @@ def XGB_predict_daal4py(x_test, y_test, xgb_model, loop_ctr, i_flag):
     MSE = np.square(np.subtract(y_test, y_pred)).mean()
     return y_pred, min(pred_time), MSE
 
-def XGB_predict_aug(x_test, xgb_model, i_flag):
-    if i_flag:
-        import daal4py as d4p  # pylint: disable=C0415,E0401
-        daal_model = d4p.get_gbt_model_from_xgboost(xgb_model.get_booster())
-    
+def XGB_predict_aug(x_test, xgb_model):
+
+    import daal4py as d4p  # pylint: disable=C0415,E0401
+    daal_model = d4p.get_gbt_model_from_xgboost(xgb_model.get_booster())
+
     # prediction start
     # xgb_pred_start = time.time()
-    if i_flag:
-        y_pred = d4p.gbt_regression_prediction().compute(x_test, daal_model).prediction.reshape(-1)
-    else:
-        y_pred = xgb_model.predict(x_test)
-    # xgb_pred_time = time.time()-xgb_pred_start
+    
+    y_pred = d4p.gbt_regression_prediction().compute(x_test, daal_model).prediction.reshape(-1)
+    
     return y_pred

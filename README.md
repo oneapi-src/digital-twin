@@ -1,319 +1,471 @@
 # **Building a MOSFET Digital Twin for Design Exploration: Modeling Sub-threshold Voltage Leakage Current using XGBoostRegressor**
-Intel® optimized version (1.5.0) of XGBoost can be used to achieve much quicker training & inference compared to stock version of XGBoost (0.80). In addition to these optimizations, converting a trained gradient boosting model to a daal4py version of the model can further accelerate inference performance.
 
-# **Contents**
- - [Context And Scope](#context-and-scope)
- - [Purpose](#purpose)
- - [Reference Solution](#reference-solution)
- - [Comparing Performance Benefits](#comparing-performance-benefits)
- - [Key Takeaways](#key-takeaways)
- - [Appendix](#Appendix)
+## Introduction
 
-## **Context And Scope**
-At a very high-level, [Digital Twins](https://en.wikipedia.org/wiki/Digital_twin#:~:text=A%20digital%20twin%20is%20a,testing%2C%20monitoring%2C%20and%20maintenance.) are _in silico_ replicas of physical products, devices or even processes. They can be used as a substitute to expensive testing and experimentation when there is a need to understand or predict a response of their real counterparts when they are subjected to a set of operating conditions or what-if scenarios. This can be extremely handy during product design as well as post-deployment in the field. They can be rendered in a 2D or even a 3D form in applications, programs or interfaces to make them as close to their real counterparts as possible. 
-
-Let's take a wind turbine for example. A block-diagram based graphical environment such as [Simulink](https://www.mathworks.com/help/simulink/index.html) can be used to create a pictoral representation of a wind turbine, which can accept design/input conditions such as wind speed, blade angle, dimensions, material etc. Such a representation will allow a user to interactively provide input these variables and the underlying backend code will calculate the response in the form of RPM, mechanical stress, energy generation etc. Even though this is represented in a visual/interactive form, the backend code will still be analytical equations or AI models generating a response to a series of input variables. This serves as a key purpose of a digital twin. Each response variable will be driven by its own solver or model.
-
-The scope of this reference kit is to build an AI model to provide an approach to model just **one** of several behaviors of a device of choice and demonstrate how Intel oneAPI can optimize that solution. Please note, the scope of this reference kit is not to generate an interactive digital twin in order to simulate the behavior of a device as comprehensively as possible. This reference kit's approach can be enhanced to model other relevant properties and the model(s) can be deployed on s/w like Simulink for the construction of more comprehensive Digital Twins.
-
-## **Purpose**
-
- For this reference kit we have chosen to model the behavior of Metal-Oxide Substrate Field Effect Transistors (MOSFETs), which are commonly used in consumer electronics and power devices. For MOSFETs the "leakage current" is a key indicator of performance. Hence understanding the how leakage current varies as a function of the input conditions is critical.
-
- The device includes three components (source, drain and gate). The source-drain current is a function of the operating gate voltage, **v_gs** and the threshold voltage **v_th**. Theoretically, when the **v_gs** is below a threshold **v_th** (**OFF** state), the source drain current _should be_ **zero**. However, there is always a **leakage current** because of several factors. The leakage current can be estimated through analytical equations which do not take into account statistical noise or testing which is often expensive. 
-
-A Machine Learning (ML) solution or an ML-powered MOSFET Digital Twin can be a valuable substitute which will predict leakage current from input values which include **v_th** and **v_gs**. Initial **v_gs** and **v_th** and **leakage_current** data can be collected on millions of MOSFETs. An ML model can be built using this data and can be continuously updated as more data is populated. Essentially this "model" can serve as a digital twin and substitute expensive testing/experimentation. Calculating the sub-threshold leakage of multiple MOSFETs for several voltage levels can help optimize manufacturing as well as monitor performance in the field.
-
-## **Reference Solution**
-This section provides key implementation details on of the proposed reference solution for the target use case. It is organized as follows:
-
-1. Proposed reference end-to-end architecture
-2. Setting up the stock environment
-3. Executing reference architecture pipeline components (training, hyperparameter tuning, inference, semi-supervised learning)
-4. Optimizing the reference solution pipeline using Intel packages
+This case uses Intel® Optimized version of XGBoost* to achieve fast traing and inference times, converts a gradient boosting model to a daal4py version included inside Intel® Extension for Scikit-Learn* and enable inference performance acceleartion.
+With this use case you will learn to use Intel® tools to build a Digital Twin model which reflects the response (leackage current) of a Metal-Oxide Substrate Field Effect Transistors (MOSFETs) based on the voltage received (gate) for design exploration purposes helping saving cost compared with normal pyshical experimentation. Visit [Developer Catalog](https://developer.intel.com/aireferenceimplementations) for more workflow examples. 
 
 
+<!--is this hidden?-->
+## **Contents**
 
-### **Proposed Reference Architecture**
-A schematic of the proposed reference architecture is shown in the following figure. The portion of the diagram enclosed in the red dashed line is the section of the workload for generating the synthetic data. 
+- [**Building a MOSFET Digital Twin for Design Exploration: Modeling Sub-threshold Voltage Leakage Current using XGBoostRegressor**](#building-a-mosfet-digital-twin-for-design-exploration-modeling-sub-threshold-voltage-leakage-current-using-xgboostregressor)
+  - [Introduction](#introduction)
+  - [**Contents**](#contents)
+  - [Solution Technical Overview](#solution-technical-overview)
+  - [Solution Technical Details](#solution-technical-details)
+    - [Task 1: Generate Synthetic Data](#task-1-generate-synthetic-data)
+    - [Task 2: Training](#task-2-training)
+    - [Task 3: Tuning](#task-3-tuning)
+    - [Task 4: Semi-supervised Learning](#task-4-semi-supervised-learning)
+    - [Task 5: Prediction](#task-5-prediction)
+  - [Validated Hardware Details](#validated-hardware-details)
+  - [How it works](#how-it-works)
+  - [Get Started](#get-started)
+    - [Environment variables](#environment-variables)
+    - [Download the Workflow Repository](#download-the-workflow-repository)
+    - [Set Up Conda](#set-up-conda)
+    - [Set Up Environment](#set-up-environment)
+  - [Supported Runtime Environment](#supported-runtime-environment)
+  - [Run using Bare Metal](#run-using-bare-metal)
+    - [Clean Up Bare Metal](#clean-up-bare-metal)
+  - [Expected output](#expected-output)
+  - [Summary and next steps](#summary-and-next-steps)
+    - [How to customize this use case](#how-to-customize-this-use-case)
+    - [Adopt to your dataset](#adopt-to-your-dataset)
+  - [Learn More](#learn-more)
+  - [Support](#support)
+  - [Appendix](#appendix)
+    - [About This Use Case](#about-this-use-case)
+    - [References](#references)
 
-Below the entire reference architecture diagram, there is an expanded schematic which describes how the leakage current is calculated from voltage values and other parameters.
 
+## Solution Technical Overview
+
+A Digital Twin ([1],[2]) is a virtual model designed to accurately reflect a physical object behaviour during its lifecycle, it can be updated with real-time data, machine learning and simulation. For creation of a Digital Twin the object in question is outfitted with various sensors located in vital areas of functionality, this areas are defined according to the impact the information has with the desired output of the studied object. 
+Examples of data produced by the sensors are temperature, humidity, pressure, distance, voltage, current, resistance, etc. 
+Once the data is studied and analyzed, it can fed the virtual model to run simulations, study critical behaviours, experimental optimizitations and provide valuable insights to be applied to the original physical object from response to the input variables/conditions.
+This mere definition of a Digital Twin has impact in many areas of study for different types of industries due to the low cost compared with having a real physical twin object to perform tests which may cause the object to stop working or even catasthropic reactions. Digital Twins can also predict the lifespan of the object under certain conditions with predictive analytics, support the maintanance methods for it and manage complex connections within systems of systems. 
+
+
+For this reference kit we have chosen to model the behavior of Metal-Oxide Substrate Field Effect Transistors (MOSFETs), which are commonly used in consumer electronics and power devices. For MOSFETs the "leakage current" is a key indicator of performance. Hence understanding how the leakage current varies as a function of the input conditions is critical. 
+
+The device includes three components (source, drain and gate). The source-drain current is a function of the operating gate voltage, $v_{gs}$ and the threshold voltage $v_{th}$. The ideal switching characteristic of MOSFET is such that if the gate-source voltage exceeds the specified threshold voltage, the MOSFET is in the ON state. Otherwise, the device is in the OFF state, and the source drain current should be zero. However, in real applications there is always a leakage current because of several factors. The leakage current can be estimated through analytical equations which do not take into account statistical noise or testing which is often expensive. 
+
+A Machine Learning (ML) solution or an ML-powered MOSFET Digital Twin can be a valuable substitute which will predict leakage current from input values which include $v_{th}$ and $v_{gs}$. Initial $v_{gs}$ and $v_{th}$ and **leakage_current** data can be collected on millions of MOSFETs. An ML model can be built using this data and can be continuously updated as more data is populated. Essentially this "model" can serve as a digital twin and substitute expensive testing/experimentation. Calculating the sub-threshold leakage of multiple MOSFETs for several voltage levels can help optimize manufacturing as well as monitor performance in the field.
+
+In addition, this use case uses Intel® tools to speed the whole pipeline, which will be briefly described below, if you want to go directly to the links for each one of the Intel® tools described go to [Learn More](#learn-more) section. 
+  
+Scikit-learn* (often referred to as sklearn) is a Python* module for machine learning. Intel® Extension for Scikit-learn* seamlessly speeds up your scikit-learn applications for  Intel® CPUs and GPUs across single- and multi-node configurations. This extension package dynamically patches scikit-learn estimators while improving performance for your machine learning algorithms.
+
+The extension is part of the Intel® AI Analytics Toolkit (AI Kit) that provides flexibility to use machine learning tools with your existing AI packages.
+
+XGBoost* is an open source gradient boosting machine learning library. It performs well across a variety of data and problem types, so it often pushes the limits of compute resources.
+Using  XGBoost* on  Intel® CPUs takes advantage of software accelerations powered by oneAPI, without requiring any code changes. Software optimizations deliver the maximum performance for your existing hardware. This enables faster iterations during development and training, and lower latency during inference.. **Please keep in mind** that to train an  XGBoost* model using  Intel® optimizations that the 'tree_method' parameter should be set to 'hist'. 
+
+Modin* is a drop-in replacement for pandas, enabling data scientists to scale to distributed DataFrame processing without having to change API code. Intel® Distribution of Modin* adds optimizations to further accelerate processing on  Intel® hardware.
+
+daal4py included in Intel® oneAPI Data Analytics Library (oneDAL)* as part of the Intel® Extension for Scikit-learn*, is an easy-to-use Python* API  that provides superior performance for your machine learning algorithms and frameworks. Designed for data scientists, it provides a simple way to utilize powerful Intel® DAAL machine learning algorithms in a flexible and customizable manner. For scaling capabilities, daal4py also provides you the option to process and analyze data via batch, streaming, or distributed processing modes, allowing you to choose the option to best fit your system's needs.
+
+For more details, visit the [Building a MOSFET Digital Twin for Design Exploration: Modeling Sub-threshold Voltage Leakage Current using XGBoostRegressor](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin) GitHub repository.
+
+## Solution Technical Details
+
+A schematic of the proposed reference architecture is shown in the following figure. The portion of the diagram enclosed in the red dashed line is the section of the workload for generating the synthetic data. The dashed green line section corresponds to the  XGBoost* optimization process.
+
+daal4py's speedy frameworks are best known as a way to accelerate machine learning algorithms from Scikit-Learn*, however, this guide provides you with the information to use the daal4py algorithms directly.
+
+![e2e-flow](assets/e2e-flow-diagram.png)
+
+### Task 1: Generate Synthetic Data
+The main data generator script is located in (src/utils/synthetic_datagen.py)
+The following figure describes how the leakage current is calculated from voltage values and other parameters.
+
+![data_gen](assets/data-gen-flow-diagram.png)
+
+### Task 2: Training
+
+The proposed reference solution is built primarily using an  XGBoost*   Regressor. However, separate experiments were conducted using a Linear Regressor to serve as a reference point for Mean Squared Error (MSE) values and confirm that  XGBoost* outperforms a simple Linear Regressor.
+
+### Task 3: Tuning
+The Hyperparameter tunning happens during the training phase by getting the best parameters and best estimator form the [GridSearchCV](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html) function from [Intel® Extension for Scikit-learn*](https://www.intel.com/content/www/us/en/developer/tools/oneapi/scikit-learn.html), the estimator will return the highest score (or smallest loss if specified) on the left out data and the best parameters will gave the best results on the hold out data.
+
+### Task 4: Semi-supervised Learning
 In addition to the standard training/hyperparameter tuning/prediction sections of an ML pipeline, we will also build a semi-supervised learning component to enable continuous learning. Here we will start by training a conventional ML model and then use it to create pseudo-response values for non-training, synthetic data. Both the original and synthetic pseudo-response data will be combined and used to train a "semi-supervised" model.
 
 This process can continue iteratively to _simulate_ self-learning - similar to a digital twin - from influx of "fresh" data from devices. The model.pkl file is the XGBRegressor model which will be stored to be later used for inferencing. 
 
+### Task 5: Prediction
 Once the development exercise is complete, the final model can then be deployed into production and used as a digital replica of a MOSFET device for simulating leakage behavior of a real device OR can be used as one of the componets to build a more complex Digital Twin system.
 
-**Note:** The proposed reference solution is built primarily using an XGBoost Regressor. However, separate experiments were conducted using a Linear Regressor to serve as a reference point for Mean Squared Error (MSE) values and confirm that XGBoost outperforms a simple Linear Regressor. Actual MSE numbers are mentioned in the section for [Comparing Performance Benefits](#comparing-performance-benefits)
 
-![e2e-flow_stock](assets/e2e-flow_stock.png)
 
-![data_gen](assets/data_gen.png)
+## Validated Hardware Details
 
-### **Stock Packages Used**
-- Python v3.9
-- Pandas v1.4.2
-- NumPy v1.22.4
-- XGBoost v0.81
-- Scikit-learn v1.1.1
+| Recommended Hardware | Precision |
+| -------------- | -----------------|
+| Intel(R) Xeon(R) Platinum 8280 CPU @ 2.70GHz with 187 GB de RAM | FP32 |
+| RAM: 187 GB | |
+|  Recommended Free Disk Space: 22 GB or more | |
 
-### **Setting up Stock Environment**
+Code was tested on Ubuntu* 22.04 LTS.
 
-To execute the scripts provided in the reference kit, you will need to work on the Anaconda platform. Download and installation instructions for a Linux machine can be found [here](https://docs.anaconda.com/anaconda/install/linux/)
+## How it works
+The workflow below represents the end to end process for this use case within the scripts that will be used in [get started section](#get-started).
 
-Once Anaconda is installed, clone the git repository using the following command:
-```shell
-git clone https://www.github.com/oneapi-src/digital-twin
+![main-workflow](assets/how-it-works.png)
+
+This workflow gives a first approach model to MOSFETs behaviour using a synthetic dataset, if you want to use this use case pipeline in a production environment is critical to change the synthetic dataset for a pre analyzed dataset with data gathered from your productive environment. 
+
+
+## Get Started
+Define the environment variables that will store the path to your desired workspace folder, this variables will be referenced in next steps for an easy go through experience. 
+### Environment variables
+
+**WORKSPACE:**
+Path where the current repository be cloned in next steps. \
+**DATA_DIR:**
+Path where the dataset must be placed. \
+**OUTPUT_DIR:**
+Path where the pipeline logs will be saved. 
+
+[//]: # (capture: baremetal)
+``` bash
+export WORKSPACE=$PWD/digital-twin
+export DATA_DIR=$WORKSPACE/data
+export OUTPUT_DIR=$WORKSPACE/logs
 ```
 
-Once the repo is cloned, navigate to the parent directory. The script `setupenv.sh` is provided to automate the setup of the conda environments necessary. In the parent directory, execute the following command:
+### Download the Workflow Repository
+Create the workspace directory and clone the [Workflow Repository](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin) into the ```WORKSPACE``` path. 
 
-```shell
-./setupenv.sh
+[//]: # (capture: baremetal)
+``` bash
+mkdir -p $WORKSPACE && cd $WORKSPACE
 ```
-This will prompt for the selection of stock/intel packages. Select 1 for stock.
-
-Example option selection for creating stock/intel environement as given below
-
-```shell
-Select technology distribution:
-    1. stock
-    2. intel
+```bash
+git clone https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin.git $WORKSPACE
 ```
-Once the environment is setup, activate the stock environment using the following command.
-
-```shell
-conda activate MOSFET_stock
+[//]: # (capture: baremetal)
+```bash
+mkdir -p $DATA_DIR/models
+mkdir -p $OUTPUT_DIR
 ```
-You can then move ahead to executing the pipeline using stock packages
+### Set Up Conda
+Reffer to [Conda Installing on Linux](https://docs.anaconda.com/free/anaconda/install/linux/) for more details. 
+``` bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+```
+### Set Up Environment
+This reference kit uses libmamba solver for fast environment creation. The dependencies file is located in [$WORKSPACE/env/intel_env.yml](env/intel_env.yml). 
+| Packages | Version | 
+| -------- | ------- |
+| python | 3.9 |
+| intelpython3_full | 2023.2.0 |
+| modin-all | 0.23.0 | 
 
-### **Data Ingestion**
+Suggested libmamba setup
+``` bash
+conda install -n base conda-libmamba-solver
+conda config --set solver libmamba
+```
+Environment creation
+``` bash
+conda env create -f $WORKSPACE/env/intel_env.yml
+conda activate digital_twin_intel
+```
+***Note:***
 
-For this reference kit, there is no data that needs to be loaded from an external source. Synthetic data is generated as part of the source code. The relevant functions for data generation are located in the file *synthetic_datagen.py* and which is called from *MOSFET_v5_ML.py* during code execution, that is described in the following sections. The synthetic data will have 9 columns where 8 of the columns are features that are used for training and 1 column is the response or prediction, which is the logarithm of sub-threshold voltage leakage current.
+The environment must be set just once time, the environment must include the dependencies listed above. To list your environments  use ```conda env list``` or ```conda info -e``` .
+## Supported Runtime Environment
+The execution of the reference kit is compatible with the following environments: 
+- Bare Metal
 
-### **Training/Hyperparameter Tuning/Inference**
 
-Once we create and activate the virtual environment, we can run the benchmarks for evaluating performance gain. The training and inference portion of benchmarking can be run using the python script `MOSFET_v5_ML.py`.
+## Run using Bare Metal
+Before running the following steps, make sure your environment is complete according the [Get Started Section](#get-started). \
+Requirements: 
+- [Conda installation](#set-up-conda)
+- [Use case environment ready](#set-up-environment)
 
-The script **generates the synthetic data**, **performs low-level feature engineering**, **trains an XGBoostRegressor model**, and **performs inference on the trained model**. It also reports the time taken to perform model training and inference. With the right argument, the script can also **perform hyperparameter tuning**. 
+**Run Workflow**
 
-> Before running the script, we need to ensure that the appropriate conda environment is activated.
+
+Go to the WORKSPACE directory 
+
+[//]: # (capture: baremetal)
+``` bash
+cd $WORKSPACE
+```
+For the pipeline to run, make sure to have the use case environment activated: 
+
+
+``` bash
+conda activate digital_twin_intel
+```
+Once we create and activate the virtual environment, we can run the benchmarks for evaluating performance gain. The training and inference portion of benchmarking can be run using the python script `MOSFET_main.py`. [How this script works?](#how-it-works)
+
 
 The run benchmark script takes the following arguments:
 
-```shell
-usage: MOSFET_v5_ML.py [-h] [-l LOGFILE] [-i] [-m modeltype] [-mf modelfile] [-n n_data_len]
+```bash
+usage: MOSFET_main.py [-h] [-l LOGFILE] -m MODEL [-mf MODELFILE] [-n N_DATA_LEN] [-d DATA_PATH] [-x [X_COLS ...]]
+                      [-y Y_COL]
 
-arguments:
+optional arguments:
   -h, --help            show this help message and exit
-  -l, --logfile         log file to output benchmarking results to
-  -i, --intel           use intel accelerated technologies where available
-  -m, --modeltype           provide model type (lr for LinearRegression, xgb for XGBoost, 
-                                            xgbh for XGBoost with hyperparameter tuning)
-  -mf,  --modelfile      provide model file name to dump the trained model
-  -s n_data_len         parameter which decides data length (120,960,3240K). Provide 1,2, or 3
+  -l LOGFILE, --logfile LOGFILE
+                        log file to output benchmarking results to
+  -m MODEL, --model MODEL
+                        type of model lr:linreg, xgb:xgboost, xgbh: xgb with hyperparameter tuning, xgbfull:
+  -mf MODELFILE, --modelfile MODELFILE
+                        name for the built model please add extension if desired
+  -n N_DATA_LEN, --n_data_len N_DATA_LEN
+                        option for data length. Provide 1 2 or 3, default 1
+  -d DATA_PATH, --data_path DATA_PATH
+                        path to the customized csv dataset, optional
+  -x [X_COLS ...], --x_cols [X_COLS ...]
+                        provide the independent columns of customized dataset space separated
+  -y Y_COL, --y_col Y_COL
+                        provide the dependent column of customized dataset
+```
+**Training Types** \
+The pipeline has tree different type of trainings to perform for reference: 
+- Linear Regression ( *lr* )
+- XGBoost ( *xgb* )
+- XGBoost Hyperparameter ( *xgbh* ) 
+- XGBFull ( *xgbfull* )
+
+**Data Length** \
+As mentioned previously, the dataset used for this use case is synthetic, the main data generator script is located in (src/utils/synthetic_datagen.py)
+Valid values for data length factors are: 
+- 1: 120000 rows 10 columns datashape.
+- 2: 960000 rows 10 columns datashape.
+- 3: 3240000 rows 10 columns datashape. 
+
+**Note:** The training script takes only 2.5M of rows, if the data length is larger only 2.5M rows will be taken.
+
+
+To run the pipeline with default values: 
+``` bash
+python $WORKSPACE/src/MOSFET_main.py -m <training-type>
+```
+To run the pipeline giving names and logs addresses:
+```bash
+python $WORKSPACE/src/MOSFET_main.py -m <training-type> -mf <model-name>.pkl -l $OUTPUT_DIR/<log-name>.log -n 1
+```
+***Note:*** *After a successfull run you can find the model in the $WORKSPACE path with your given name, in addition the logs can be found inside $OUTPUT_DIR folder (if your setup is the same as the previous example) otherwise you can find your logs in your given path.*
+
+**Example 1**: \
+To run a simple  XGBoost* training, with default values: 
+```bash
+python $WORKPSACE/src/MOSFET_main.py -m xgb
+```
+To run a simple  XGBoost* training, with model name "xgb_model.pkl" , with logs saved in "$OUTPUT_DIR/xgb_log.log" and data length 2:
+
+[//]: # (capture: baremetal)
+```bash
+python $WORKSPACE/src/MOSFET_main.py -m xgb -mf $DATA_DIR/models/xgb_model.pkl -l $OUTPUT_DIR/xgb_log.log -n 2
 ```
 
-To run with stock set-up while logging the performance to `logs`, we would run in the parent directory (after creating the appropriate environment as above):
-```shell
-python ./src/MOSFET_v5_ML.py -m xgb -mf MOSFET_XGB_stock_120000.pkl -l ./logs/XGB_stock.log -n 1
+**Example 2**: \
+To run a  XGBoost* training with hyperparameters, with default values: 
+```bash
+python $WORKSPACE/src/MOSFET_main.py -m xgbh
+```
+To run a  XGBoost* training with hyperparameters, with model name "xgbh_model.pkl" , with logs saved in "$OUTPUT_DIR/xgbh_log.log" and data length 1:
+
+[//]: # (capture: baremetal)
+```bash
+python $WORKSPACE/src/MOSFET_main.py -m xgbh -mf $DATA_DIR/models/xgbh_model.pkl -l $OUTPUT_DIR/xgbh_log.log -n 1
 ```
 
-The log file name can be changed to describe the run. In this example, the name of the log is `XGB_stock.log`. **Please note** the log file dump will **not** create a new log file everytime. If a log file currently exists with the inputted name, the code will keep on appending result logs to the existing file.
+*Note: The same name and path for logfile for every call appends to the existing log file with equals name and path.*
 
-To conduct hyperparameter tuning, just change the `-m` argument input to **xgbh** instead of **xgb** and provide the correct log file path.
-
-So far, we have not discussed semi-supervised learning which is triggered during full pipeline execution. The full pipeline execution is simulating how inference can be run on fresh data to create pseudo-response data. In real life, the continuous data stream would be coming from the field where MOSFET devices are deployed or from tests conducted as part of manufacturing. In our case though, it is synthetic. The, "fresh" pseudo-response data can then be appended to the existing training dataset to create an "augmented" training dataset. The digital twin model then can be revised using the augmented training dataset. This process is carried out iteratively in the file _MOSFET_v5_ML.py_. 
-
-**Please note** that the data is length for the full pipeline execution is capped at 2.5M. In addition to the standard log, a csv file (train_time_stock.csv or train_time_intel.csv) will be dumped in the parent directory.
-
-To execute the full pipeline, just change the `-m` argument input to **xgbfull** instead of **xgb** and provide the correct log file path as follows:
-
-```shell
-python ./src/MOSFET_v5_ML.py -m xgbfull -l ./logs/XGBfull_stock.log -n 2
+### Clean Up Bare Metal
+Before proceeding to the cleaning process, it is strongly recommended to make a backup of the data that the user wants to keep. To clean the previously downloaded and generated data, run the following commands:
+```bash
+conda deactivate #Run line if digital_twin_intel is active
+conda env remove -n digital_twin_intel
 ```
 
-#### **Expected Output**
-
-The script will generate the following outputs:
-1. After the execution of training/hyperparameter tuning benchmarks, the script will dump an XGBoost Regressor Model (.pkl) file in the working directory. The generated model is used subsequently in the same script for running inference.
-2. The inference output will be a continuous response variable which will be the predicted logarithm of the leakage current as well as the MSE values based on the actual logarithm of the leakage current. _However, only the benchmarking time and MSE value is reported in the log file._
-3. For the full pipeline execution, in addition to the log file, a csv file (train_time_stock.csv or train_time_intel.csv) will be dumped in the parent directory. This tracks the training dataset length after each iteration as well as the time it took to train an XGBoost Regression model for that dataset. We will plot the trend in the results section. The data length is capped at 2.5M rows.
-
-## **Optimizing the Reference Solution using Intel Packages**
-
-The reference solution architecture for an Intel-optimized version of the pipeline is largely unchanged except for the execution using training and inference Intel optimizations for XGBoost and the use of additional inference optimizations from the daal4py module. Input data is generated using the same analytical principles. The trained model will be converted to a daa4py version to use Intel optimizations. This leads to a much faster inference performance. In a hypothetical "deployment" situation, the original model will be deployed but in order to avail daal4py optimizations inference must always be run post-daal4py conversion. <br>
-
-![e2e-flow_optimized](assets/e2e-flow_optimized.png)
-
-![data_gen](assets/data_gen.png)
-
-### **Intel Packages Used**
-- Python v3.9
-- Pandas v1.3.5
-- numpy v1.21.4
-- XGBoost v1.5.0
-- scikit-learn v0.24.2
-- Intel Extension for Scikit-Learn v2021.6.0
-- daal4py v2021.6.0
-
-#### **Intel® Extension for Scikit-Learn**
-Intel® Extension for Scikit-Learn is part of the larger Intel® AI Analytics Toolkit, and powered by the Intel® oneAPI Data Analytics Library (oneDAL). It offers significant performance boost over analytics, training and inference of the standard classical ML algorithms and analytics such as train test split, regressions, classification, random forests, decision trees, etc. 
-
-#### **XGBoost v1.5.0**
-XGBoost v1.5.0 will offer Intel optimized training and inference performance over stock XGBoost. Post v0.81 Intel optimizations have been already upstreamed in the standard release versions. As a result, no additional code changes are needed to use the optimized versions. **Please keep in mind** that to train an XGBoost model using Intel optimizations that the 'tree_method' parameter should be set to 'hist'.
-
-#### **daal4py**
-
-daal4py is the Python API for the Intel® oneAPI Data Analytics Library (oneDAL), and it is a part of the larger Intel® AI Analytics Toolkit. daal4py has the ability to easily convert trained XGBoost and LightGBM models to offer significant advantage in inference compared to stock inferencing _without accuracy loss_. This can be vital while serving a model on an edge location which has to handle a high influx of requests from a client.
-
-### **Setting up Intel Environment**
-
-Follow the same instructions as the ones for setting up a stock environment. Execute the following command:
-
-```shell
-./setupenv.sh
+[//]: # (capture: baremetal)
+```bash
+rm $OUTPUT_DIR $DATA_DIR -rf
 ```
-This will prompt for the selection of stock/intel packages. Select 2 for intel.
 
-```shell
-Select technology distribution:
-    1. stock
-    2. intel
+## Expected output
+Reffering to the examples mentioned in [this section](#run-using-bare-metal) the following outputs represent successfull runs. 
+
+**Example 1** : 
+```bash
+Intel(R) Extension for Scikit-learn* enabled (https://github.com/intel/scikit-learn-intelex)
+Intel(R) Extension for Scikit-learn* enabled (https://github.com/intel/scikit-learn-intelex)
+===== Running benchmarks for oneAPI tech =====
+===== Generating Synthetic Data =====
+--------- Synthetic Dataset Overview ---------
+     w_l   vgs       vth       eta        temp       sub-vth w_l_bins vgs_bins vth_bins  log-leakage
+0  0.001  0.01  1.050000  1.217129  330.082475  9.035183e-17        1        1        1    16.044063
+1  0.001  0.01  1.062342  1.201704  282.045813  2.233716e-19        1        1        1    18.650972
+2  0.001  0.01  1.074684  1.200153  281.472996  1.292874e-19        1        1        1    18.888444
+3  0.001  0.01  1.087025  1.175888  284.751179  6.035123e-20        1        1        1    19.219314
+4  0.001  0.01  1.099367  1.211889  356.945319  2.028265e-16        1        1        1    15.692875
+Done ✓
+Data saved in:  //frameworks.ai.platform.sample-apps.digital-twin//data/synthetic_data.csv
+Synthetic data shape 960000 11
+Synthetic dataset 'X' columns: ['w_l', 'vgs', 'vth', 'eta','temp', 'w_l_bins', 'vgs_bins', 'vth_bins']
+Synthetic dataset 'Y' target column: 'log-leakage'
+INFO:sklearnex: sklearn.model_selection.train_test_split: running accelerated version on CPU
+sklearn.model_selection.train_test_split: running accelerated version on CPU
+INFO:sklearnex: sklearn.model_selection.train_test_split: running accelerated version on CPU
+sklearn.model_selection.train_test_split: running accelerated version on CPU
+===== Running Benchmarks for XGB Regression =====
+Training time = 3.133789300918579
+Prediction time = 0.042740821838378906
+daal4py Prediction time = 0.01962566375732422
+Mean SQ Error: 0.017
+daal4py Mean SQ Error: 0.017
 ```
-Once the environment is setup, activate the intel environment using the following command.
 
-```shell
-conda activate MOSFET_intel
+**Example 2** : 
+```bash
+Intel(R) Extension for Scikit-learn* enabled (https://github.com/intel/scikit-learn-intelex)
+Intel(R) Extension for Scikit-learn* enabled (https://github.com/intel/scikit-learn-intelex)
+===== Running benchmarks for oneAPI tech =====
+===== Generating Synthetic Data =====
+--------- Synthetic Dataset Overview ---------
+     w_l   vgs    vth       eta        temp       sub-vth w_l_bins vgs_bins vth_bins  log-leakage
+0  0.001  0.01  1.050  1.208536  293.649819  1.701777e-18        1        1        1    17.769097
+1  0.001  0.01  1.075  1.204200  320.383640  1.223601e-17        1        1        1    16.912360
+2  0.001  0.01  1.100  1.221108  312.065480  3.785925e-18        1        1        1    17.421828
+3  0.001  0.01  1.125  1.217852  279.375132  3.034652e-20        1        1        1    19.517891
+4  0.001  0.01  1.150  1.204661  240.956293  1.615252e-23        1        1        1    22.791760
+Done ✓
+Data saved in:  //frameworks.ai.platform.sample-apps.digital-twin//data/synthetic_data.csv
+Synthetic data shape 120000 11
+Synthetic dataset 'X' columns: ['w_l', 'vgs', 'vth', 'eta','temp', 'w_l_bins', 'vgs_bins', 'vth_bins']
+Synthetic dataset 'Y' target column: 'log-leakage'
+INFO:sklearnex: sklearn.model_selection.train_test_split: running accelerated version on CPU
+sklearn.model_selection.train_test_split: running accelerated version on CPU
+INFO:sklearnex: sklearn.model_selection.train_test_split: running accelerated version on CPU
+sklearn.model_selection.train_test_split: running accelerated version on CPU
+===== Running Benchmarks for XGB Hyperparameter Training =====
+Fitting 4 folds for each of 8 candidates, totalling 32 fits
+Training time = 14.580235242843628
+Prediction time = 0.46219873428344727
+daal4py Prediction time = 0.004792928695678711
+Mean SQ Error: 0.015
+daal4py Mean SQ Error: 0.015
 ```
-You can then move ahead to executing the pipeline using intel packages
 
-### **Training/Hyperparameter Tuning/Inference**
 
-Once we create and activate the virtual environment, we can run the benchmarks for evaluating performance gain. The training and inference portion of benchmarking can be run using the python script `MOSFET_v5_ML.py`.
+## Summary and next steps
 
-The script **generates the synthetic data**, **performs low-level feature engineering**, **trains an XGBoostRegressor model**, **performs inference on the trained model**. It also reports the time taken to perform model training and inference. With the right argument, the script can also **perform hyperparameter tuning**. 
+### How to customize this use case
+Because MOSFET devices are so common, any performance gain in model development will be amplified significantly in a deployed model. This offers a significant advantage in model solution scalability. Because leakage current is a key indicator of performance, a digital twin which can predict the leakage current of MOSFET devices _at scale_ will be extremely valuable. To deploy this solution, the model.pkl file which is created as a result of training/hyperparameter tuning can be used to create the end-user applications (APIs to handle client requests) through standard OS packages such as flask or FastAPI.
 
-> Before running the script, we need to ensure that the appropriate conda environment is activated.
+### Adopt to your dataset
+To use this use case with your own dataset please take note of the name of the columns of your dataset (independent columns  and target column), since some scripts points directly to the columns used with the synthetic dataset. The dataset must be in **csv** format to guarantee the functionallity of this section. Follow this steps to use your own dataset. \
+**Step 1. Make sure this steps are completed succesfully:**
+- [Get Started](#get-started)
 
-The run benchmark script takes the following arguments:
+**Step 2. Place your customized dataset in the dataset dir**
+```bash
+mv /path/to/your/customized/dataset.csv $DATA_DIR/
+```
 
-```shell
-usage: MOSFET_v5_ML.py [-h] [-l LOGFILE] [-i] [-m modeltype] [-mf modelfile] [-n n_data_len]
+**Step 3. Run your workflow with your data**
+The script MOSFET_main.py can receive the independent columns of your dataset which corresponds to the 'X' part of the dataframes, and the target 'Y' column of your data which corresponds to the variable you want to predict as you can see in the help message below: 
 
-arguments:
+```bash
+usage: MOSFET_main.py [-h] [-l LOGFILE] -m MODEL [-mf MODELFILE] [-n N_DATA_LEN] [-d DATA_PATH] [-x [X_COLS ...]]
+                      [-y Y_COL]
+
+optional arguments:
   -h, --help            show this help message and exit
-  -l, --logfile         log file to output benchmarking results to
-  -i, --intel           use intel accelerated technologies where available
-  -m, --modeltype           provide model type (lr for LinearRegression, xgb for XGBoost, 
-                                            xgbh for XGBoost with hyperparameter tuning)
-  -mf,  --modelfile      provide model file name to dump the trained model
-  -s n_data_len         parameter which decides data length (120,960,3240K). Provide 1,2, or 3
+  -l LOGFILE, --logfile LOGFILE
+                        log file to output benchmarking results to
+  -m MODEL, --model MODEL
+                        type of model lr:linreg, xgb:xgboost, xgbh: xgb with hyperparameter tuning, xgbfull:
+  -mf MODELFILE, --modelfile MODELFILE
+                        name for the built model please add extension if desired
+  -n N_DATA_LEN, --n_data_len N_DATA_LEN
+                        option for data length. Provide 1 2 or 3, default 1
+  -d DATA_PATH, --data_path DATA_PATH
+                        path to the customized csv dataset, optional
+  -x [X_COLS ...], --x_cols [X_COLS ...]
+                        provide the independent columns of customized dataset space separated
+  -y Y_COL, --y_col Y_COL
+                        provide the dependent column of customized dataset
+```
+***Example 1:***
+Lets say your customized dataset follows this structure: 
+```bash
+     w_l   vgs    vth       eta  temperature       sub-vth    w_l_b    vgs_b    vth_b  curr-log-leakage
+0  0.001  0.01  1.050  1.197438   316.039904  1.401728e-17        1        1        1         16.853336
+1  0.001  0.01  1.075  1.205384   343.338401  1.069032e-16        1        1        1         15.971009
+2  0.001  0.01  1.100  1.191140   296.339600  2.713053e-19        1        1        1         18.566542
+3  0.001  0.01  1.125  1.201279   311.210269  9.215524e-19        1        1        1         18.035480
+4  0.001  0.01  1.150  1.216623   309.201781  5.407484e-19        1        1        1         18.267005
+```
+Then your target variable is named as **curr-log-leackage**. \
+Then your independent columns name are: **'w_l'   'vgs'    'vth'       'eta'  'temperature'       'sub-vth'    'w_l_b' 'vgs_b'** and **'vth_b'**.
+
+So, the argument form for each one of the arguments X and Y should be: 
+```bash
+-x w_l vgs vth eta temperature sub-vth w_l_b vgs_b vth_b
+-y curr-log-leackage
+```
+Then the command form you will take will be: 
+```bash
+python $WORKSPACE/src/MOSFET_main.py -m <training-type> -mf <model-name>.pkl -l $OUTPUT_DIR/<log-name>.log -d $DATA_DIR/<customized-dataset-name>.csv -x w_l vgs vth eta temperature sub-vth w_l_b vgs_b vth_b -y curr-log-leackage
 ```
 
-To run with Intel technologies, logging the performance to `logs`, we would run in the parent directory (after creating the appropriate environment as above):
-```shell
-python ./src/MOSFET_v5_ML.py -i -m xgb -mf MOSFET_XGB_intel_120000.pkl -l ./logs/XGB_intel.log -n 1
+Now, let's put all together with examples: 
+
+***Example 1.1:*** \
+To run a simple  XGBoost* training, with model name "xgb_model.pkl" , with logs saved in "$OUTPUT_DIR/xgb_log.log" **with your own dataset** with name "modified.csv":
+```bash
+python $WORKSPACE/src/MOSFET_main.py -m xgb -mf xgb_model.pkl -l $OUTPUT_DIR/xgb_log.log -d $DATA_DIR/modified.csv -x w_l vgs vth eta temperature sub-vth w_l_b vgs_b vth_b -y curr-log-leackage
 ```
+***Example 1.2:*** \
+To run a  XGBoost* training with hyperparameters, with model name "xgbh_model.pkl" , with logs saved in "$OUTPUT_DIR/xgbh_log.log" **with your own dataset** with name "modified.csv":
+```bash
+python $WORKSPACE/src/MOSFET_main.py -m xgbh -mf xgbh_model.pkl -l $OUTPUT_DIR/xgbh_log.log -d $DATA_DIR/modified.csv -x w_l vgs vth eta temperature sub-vth w_l_b vgs_b vth_b -y curr-log-leackage
+``` 
+If you have questions related to the rest of the parameters used please reffer to [this section](#run-using-bare-metal).
 
-The log file name can be changed to describe the current run. **Please note** the log file dump will **not** create a new log file everytime. If a log file currently exists with the inputted name, the code will keep on appending logs to the existing file.
+**_Note:_ Customized data pipelines only works with XGB,LR,XGBH training types.**
 
-To conduct hyperparameter tuning, just change the -m argument input to **xgbh** instead of **xgb** and provide the correct log file path.
+## Learn More
 
-For the full pipeline execution, just change the -m argument input to **xgbfull** instead of **xgb** and provide the correct log file path as follows: 
+Visit [Intel® Extension for Scikit-learn](https://www.intel.com/content/www/us/en/developer/tools/oneapi/scikit-learn.html) for more.
+ 
+Visit [Intel® Optimization for XGBoost](https://www.intel.com/content/www/us/en/developer/tools/oneapi/optimization-for-xgboost.html) for more.
 
-```shell
-python ./src/MOSFET_v5_ML.py -i -m xgbfull -l ./logs/XGBfull_intel.log -n 2
-```
+Visit [Intel® Distribution of Modin](https://www.intel.com/content/www/us/en/developer/tools/oneapi/distribution-of-modin.html) for more.
 
-The only difference here is that a daal4py version of the XGBoost Regressor model will be used to create pseudo-response data.
+Visit [Python* API (daal4py) for Intel® oneAPI Data Analytics Library (oneDAL)](https://www.intel.com/content/www/us/en/developer/articles/guide/a-daal4py-introduction-and-getting-started-guide.html) for more.
 
-**Please note** that the data is length for the full pipeline execution is capped at 2.5M. In addition to the standard log, a csv file (train_time_stock.csv or train_time_intel.csv) will be dumped in the parent directory.
-
-
-## **Comparing Performance Benefits**
-
-In this section, we illustrate the benchmarking results comparing the Intel® technologies vs the stock alternatives.  We break it down into the following tasks of this ML pipeline:
-
-  1. Training an XGBoost model using stock and Intel-optimized packages
-  2. Hyperparameter tuning an XGBoost model using stock and Intel-optimized packages
-  3. Predicting outcomes over batch data using an XGBoost model trained using stock technologies and a model converted to do daal4py gradient boosting inference
-  4. Enhancing the pipeline to incorporate an iterative semi-supervised learning approach
-
-Following are key observations from the results:
-
-  1. For the data sizes tested, an XGB Regressor, v1.5.0 offers up to 5.82x more speedup than v0.81 for training and up to 2.39x more speedup on hyperparameter tuning
-  2. For inference post training, XGBoost v1.5.0 offers up to 10.2x more speedup over v0.81. daal4py makes inference 1.65-1.92x faster over XGBoost v1.5.0. This makes using the optimized packages to up to 16.86 faster over using stock packages
-
-#### **Note on MSE Values**
-MSE values for a Linear Regression model were ~0.42. For an XGBoost regressor MSE values were always less than 0.033. This shows that an XGBoost Regressor outperforms a Linear Regression model in terms of accuracy
-
-#### **Note on benchmarking results**
-As mentioned before, Intel has upstreamed XGBoost optimizations to the standard release. As a result an older version v0.81 was chosen as the stock package. Please keep in mind the performance benefit will be a result of both Intel Optimizations as well as version updates.
-
-On the other hand, daal4py gain over XGBoost v1.5.0 is purely due to Intel optimizations as part of the oneDAL library.
+## Support
+The End-to-end Document Level Sentiment Analysis team tracks both bugs and enhancement requests using [GitHub issues](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin/issues). Before submitting a suggestion or bug report, search the [DLSA GitHub issues](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin/issues) to see if your issue has already been reported.
 
 
-<br>
-1. Training an Intel-optimized XGB Regressor model relative to stock XGB Regressor
 
-![training_results](assets/training.png)
+## Appendix
 
 
-2. Hyperparameter tuning on an Intel-optimized XGB Regressor model relative to stock XGB Regressor 
-
-![hyperparameter](assets/hyperparameter.png)
-
-3. Inference on an Intel-optimized XGB Regressor model and daal4py model conversion inference relative to stock XGB Regressor 
-
-![inference](assets/inference.png)
-
-4. Executing a Semi-Supervised ML (xgbfull) pipeline
-
-Once the individual components of a standard ML pipeline are executed using labeled data, we can use the model to run inference on "fresh" data to generate pseudo-response (PR) data. This data can then be collated with the original dataset, which can then be used to train a semi-supervised model. We repeated this process iteratively, increasing the dataset each time based on the value set for `n`,  for 10 passes with the total possible data size capped at 2.5M data samples. The time for training each revised version of the model is tracked and dumped as a csv as a function of iteration count. Each run (stock and intel) will result in a separate csv file (`train_time_stock.csv` or `train_time_intel.csv` for stock and intel runs respectively). The data from both files can then be consolidated into a single chart that is shown in the following plot. It compares the training-only timeframes for executing the semi-supervised learning pipeline for Intel optimizations for XGBoost vs stock packages. 
-
-The larger objective of this chart is to demonstrate how Intel optimized packages can help a digital twin self-learn faster than using stock packages over time.
-
-
-![semisupervised](assets/semisupervised.png)
-
-From the chart above, we notice that there is an initial increase in the training time due to the data size increasing as more pseudo-response data is added to the response data. But the increase plateaus off as the data size cap is reached. During the iterative process, there is a 2.1-2.35x speedup observed in model training if we compare Intel XGBoost vs stock XGBoost
-<br>
-
-## **Key Takeaways**
-
-An Intel-optimized version of XGBoost offers significant advantage over the unoptimized version in terms training, hyperparameter tuning as well as inference. Performance gains in training tend to increase with datasize whereas inference gains stay relatively constant. In addition to these optimizations, using **daal4py optimizations for inference conversion of a pre-trained XGBoost model** offers an added up to **1.92x** speedup **in inference performance** over using just the Intel-optimized version, therefore taking the total gains from optimizations to up to **16.82x** over stock technologies. 
-
-We also explored a semi-supervised learning pipeline for continuous learning, where we saw performance through the iterative process to be **2.1-2.35x** faster training performance of Intel XGBoost over stock XGBoost.
-
-To put this in more context, a digital twin is supposed to continuously learn from new information in order to match the functioning of its real counterpart as closely as possible.  The semi-supervised learning approach presented here is one way of doing that. Hence, any performance gain which makes that process faster - such as using Intel Optimizations for XGBoost and daal4py in this case - is going to make the digital twin more responsive to new information.
-
-
-## **Appendix**
-
-### **Experiment Setup**
-
-| **Configuration**:                | **Description**
-| :---                              | :---
-| Platform                          | Microsoft Azure: Standard_D8s_v5 (IceLake) <br> Ubuntu 20.04
-| Processing Hardware               | Intel IceLake CPU
-|  Software                          | XGBoost (stock_version: 0.81; intel_version: 1.5.0) <br> Pandas (stock_version: 1.4.2, intel_version:1.3.5) <br> Scikit-learn (stock_version: 1.1.1) <br> Scikit-learn (intel_version: 0.24.2) <br> Intel Extension for Scikit-Learn* (2021.6.0) <br> daal4py(2021.6.0)
-| What you will learn               | **1.** Intel® oneAPI performance advantage over the stock versions of XGBoost on model training and inference. <br>**2.** daal4py performance advantage on gradient boosting model inference
-
-Intel has released XGBoost optimizations as part of the general XGBoost packages. Please keep in mind the performance benefit will be a result of both Intel Optimizations as well as version updates. No code changes are needed to realize these performance gains apart from just updating the XGBoost version, except for explicitly listing tree_method as hist (as all training optimizations from Intel are limited to the hist tree method). However, the **daal4py** optimizations are still relevant to the use case as this can further improve the performance of end-user applications. 
-
-Because MOSFET devices are so common, any performance gain in model development will be amplified significantly in a deployed model. This offers a significant advantage in model solution scalability. Because leakage current is a key indicator of performance, a digital twin which can predict the leakage current of MOSFET devices _at scale_ will be extremely valuable. To deploy this solution, the model.pkl file which is created as a result of training/hyperparameter tuning can be used to create the end-user applications (APIs to handle client requests) through standard OS packages such as flask or FastAPI. 
-
+### About This Use Case
+ Intel® has released  XGBoost* optimizations as part of the general  XGBoost* packages. Please keep in mind the performance benefit will be a result of both  Intel® Optimizations as well as version updates. No code changes are needed to realize these performance gains apart from just updating the  XGBoost* version, except for explicitly listing tree_method as hist (as all training optimizations from  Intel® are limited to the hist tree method). However, the daal4py optimizations are still relevant to the use case as this can further improve the performance of end-user applications.
+ 
+### References
 The base code was sourced from the following github repository:
 https://github.com/tirthajyoti/Digital-Twin/blob/main/MOSFET-1.ipynb
 
-**Operating System:**
-We recommend using an Linux OS for executing the reference solution presented here, e.g. RHEL or Ubuntu.
-
-## **Notes**
-
-**The dataset used here is synthetic. Intel Corporation does not own the rights to this data set and does not confer any rights to it.**
+[1]: IBM. (2022). What is a Digital Twin. Www.ibm.com. https://www.ibm.com/topics/what-is-a-digital-twin \
+[2]: Cheat sheet: What is Digital Twin? Internet of Things blog. (2020, December 4). IBM Blog. https://www.ibm.com/blog/iot-cheat-sheet-digital-twin/
 
 
+ **The dataset used here is synthetic.  Intel® Corporation does not own the rights to this data set and does not confer any rights to it.**
 

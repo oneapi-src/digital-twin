@@ -1,9 +1,0 @@
-name: MOSFET_intel
-channels:
-  - intel
-dependencies:
-  - intelpython3_full
-  - pip=21.2.4
-  - anaconda::flask
-  - pip:
-    - xgboost==1.5.0

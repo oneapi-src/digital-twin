@@ -1,0 +1,8 @@
+name: digital_twin_intel
+channels:
+  - intel
+  - conda-forge
+dependencies:
+  - intelpython3_full=2023.2.0=py39_0
+  - modin-all=0.23.0
+

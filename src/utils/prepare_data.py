@@ -1,9 +1,11 @@
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2023 Intel Corporation
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
 Function for train-test split of the data
 """
+from sklearnex import patch_sklearn
+patch_sklearn()
 from sklearn.model_selection import train_test_split
 
 
