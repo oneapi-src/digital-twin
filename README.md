@@ -3,7 +3,7 @@
 ## Introduction
 
 This case uses Intel® Optimized version of XGBoost* to achieve fast traing and inference times, converts a gradient boosting model to a daal4py version included inside Intel® Extension for Scikit-Learn* and enable inference performance acceleartion.
-With this use case you will learn to use Intel® tools to build a Digital Twin model which reflects the response (leackage current) of a Metal-Oxide Substrate Field Effect Transistors (MOSFETs) based on the voltage received (gate) for design exploration purposes helping saving cost compared with normal pyshical experimentation. Visit [Developer Catalog](https://developer.intel.com/aireferenceimplementations) for more workflow examples. 
+With this use case you will learn to use Intel® tools to build a Digital Twin model which reflects the response (leackage current) of a Metal-Oxide Substrate Field Effect Transistors (MOSFETs) based on the voltage received (gate) for design exploration purposes helping saving cost compared with normal physical experimentation. Visit [Developer Catalog](https://developer.intel.com/aireferenceimplementations) for more workflow examples. 
 
 
 <!--is this hidden?-->
