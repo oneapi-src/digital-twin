@@ -1,4 +1,4 @@
-# **Building a MOSFET Digital Twin for Design Exploration: Modeling Sub-threshold Voltage Leakage Current using XGBoost Regressor**
+# **Digital Twin**
 
 ## Introduction
 
