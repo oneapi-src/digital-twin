@@ -67,7 +67,7 @@ Modin* is a drop-in replacement for pandas, enabling data scientists to scale to
 
 daal4py included in Intel® oneAPI Data Analytics Library (oneDAL)* as part of the Intel® Extension for Scikit-learn*, is an easy-to-use Python* API  that provides superior performance for your machine learning algorithms and frameworks. Designed for data scientists, it provides a simple way to utilize powerful Intel® DAAL machine learning algorithms in a flexible and customizable manner. For scaling capabilities, daal4py also provides you the option to process and analyze data via batch, streaming, or distributed processing modes, allowing you to choose the option to best fit your system's needs.
 
-For more details, visit the [Building a MOSFET Digital Twin for Design Exploration: Modeling Sub-threshold Voltage Leakage Current using XGBoostRegressor](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin) GitHub repository.
+For more details, visit the [Building a MOSFET Digital Twin for Design Exploration: Modeling Sub-threshold Voltage Leakage Current using XGBoostRegressor](https://github.com/oneapi-src/digital-twin) GitHub repository.
 
 ## Solution Technical Details
 
@@ -137,14 +137,14 @@ export OUTPUT_DIR=$WORKSPACE/logs
 ```
 
 ### Download the Workflow Repository
-Create the workspace directory and clone the [Workflow Repository](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin) into the ```WORKSPACE``` path. 
+Create the workspace directory and clone the [Workflow Repository](https://github.com/oneapi-src/digital-twin) into the ```WORKSPACE``` path. 
 
 [//]: # (capture: baremetal)
 ``` bash
 mkdir -p $WORKSPACE && cd $WORKSPACE
 ```
 ```bash
-git clone https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin.git $WORKSPACE
+git clone https://github.com/oneapi-src/digital-twin.git $WORKSPACE
 ```
 [//]: # (capture: baremetal)
 ```bash
@@ -449,7 +449,7 @@ Visit [Intel® Distribution of Modin](https://www.intel.com/content/www/us/en/de
 Visit [Python* API (daal4py) for Intel® oneAPI Data Analytics Library (oneDAL)](https://www.intel.com/content/www/us/en/developer/articles/guide/a-daal4py-introduction-and-getting-started-guide.html) for more.
 
 ## Support
-The End-to-end Document Level Sentiment Analysis team tracks both bugs and enhancement requests using [GitHub issues](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin/issues). Before submitting a suggestion or bug report, search the [DLSA GitHub issues](https://github.com/intel-innersource/frameworks.ai.platform.sample-apps.digital-twin/issues) to see if your issue has already been reported.
+The End-to-end Document Level Sentiment Analysis team tracks both bugs and enhancement requests using [GitHub issues](https://github.com/oneapi-src/digital-twin/issues). Before submitting a suggestion or bug report, search the [DLSA GitHub issues](https://github.com/oneapi-src/digital-twin/issues) to see if your issue has already been reported.
 
 
 
