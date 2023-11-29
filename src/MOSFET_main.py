@@ -10,10 +10,12 @@ import numpy as np
 import pandas as pd
 import os
 import joblib, pathlib
+import warnings
 from utils.synthetic_datagen import data_gen, data_gen_aug
 from utils.prepare_data import prepare_data
 from utils.training import linreg, XGBHyper_train, XGBReg_train, XGB_predict, XGB_predict_daal4py, XGB_predict_aug
 
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 def main(FLAGS):
 

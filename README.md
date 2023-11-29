@@ -161,9 +161,9 @@ bash Miniconda3-latest-Linux-x86_64.sh
 This reference kit uses libmamba solver for fast environment creation. The dependencies file is located in [$WORKSPACE/env/intel_env.yml](env/intel_env.yml). 
 | Packages | Version | 
 | -------- | ------- |
-| python | 3.9 |
-| intelpython3_full | 2023.2.0 |
-| modin-all | 0.23.0 | 
+| python | 3.10 |
+| intelpython3_full | 2024.0.0 |
+| modin-all | 0.24.1 | 
 
 Suggested libmamba setup
 ``` bash
@@ -260,7 +260,7 @@ python $WORKSPACE/src/MOSFET_main.py -m <training-type> -mf <model-name>.pkl -l 
 **Example 1**: \
 To run a simple  XGBoost* training, with default values: 
 ```bash
-python $WORKPSACE/src/MOSFET_main.py -m xgb
+python $WORKSPACE/src/MOSFET_main.py -m xgb
 ```
 To run a simple  XGBoost* training, with model name "xgb_model.pkl" , with logs saved in "$OUTPUT_DIR/xgb_log.log" and data length 2:
 
