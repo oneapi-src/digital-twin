@@ -3,6 +3,7 @@ channels:
   - intel
   - conda-forge
 dependencies:
-  - intelpython3_full=2024.0.0=py310_0
+  - python=3.10
+  - intelpython3_full=2024.0.0
   - modin-all=0.24.1
 
