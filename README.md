@@ -3,7 +3,7 @@
 ## Introduction
 
 This case uses Intel® Optimized version of XGBoost* to achieve fast traing and inference times, converts a gradient boosting model to a daal4py version included inside Intel® Extension for Scikit-Learn* and enable inference performance acceleartion.
-With this use case you will learn to use Intel® tools to build a Digital Twin model which reflects the response (leackage current) of a Metal-Oxide Substrate Field Effect Transistors (MOSFETs) based on the voltage received (gate) for design exploration purposes helping saving cost compared with normal physical experimentation. Visit [Developer Catalog](https://developer.intel.com/aireferenceimplementations) for more workflow examples. 
+With this use case you will learn to use Intel® tools to build a Digital Twin model which reflects the response (leakage current) of a Metal-Oxide Substrate Field Effect Transistors (MOSFETs) based on the voltage received (gate) for design exploration purposes helping saving cost compared with normal physical experimentation. Visit [Developer Catalog](https://developer.intel.com/aireferenceimplementations) for more workflow examples. 
 
 
 <!--is this hidden?-->
@@ -42,10 +42,10 @@ With this use case you will learn to use Intel® tools to build a Digital Twin m
 
 ## Solution Technical Overview
 
-A Digital Twin ([1],[2]) is a virtual model designed to accurately reflect a physical object behaviour during its lifecycle, it can be updated with real-time data, machine learning and simulation. For creation of a Digital Twin the object in question is outfitted with various sensors located in vital areas of functionality, this areas are defined according to the impact the information has with the desired output of the studied object. 
+A Digital Twin ([1],[2]) is a virtual model designed to accurately reflect a physical object behaviour during its lifecycle, it can be updated with real-time data, machine learning and simulation. For the creation of a Digital Twin the object in question is outfitted with various sensors located in vital areas of functionality, this areas are defined according to the impact the information has with the desired output of the studied object. 
 Examples of data produced by the sensors are temperature, humidity, pressure, distance, voltage, current, resistance, etc. 
-Once the data is studied and analyzed, it can fed the virtual model to run simulations, study critical behaviours, experimental optimizitations and provide valuable insights to be applied to the original physical object from response to the input variables/conditions.
-This mere definition of a Digital Twin has impact in many areas of study for different types of industries due to the low cost compared with having a real physical twin object to perform tests which may cause the object to stop working or even catasthropic reactions. Digital Twins can also predict the lifespan of the object under certain conditions with predictive analytics, support the maintanance methods for it and manage complex connections within systems of systems. 
+Once the data is studied and analyzed, it can fed a virtual model to run simulations, study critical behaviours, experimental optimizitations and provide valuable insights to be applied to the original physical object from response to the input variables or conditions.
+This mere definition of a Digital Twin has impact in many areas of study for different types of industries due to the low cost compared with having a real physical twin object to perform tests which may cause the object to stop working or even cause catasthropic reactions. Digital Twins can also predict the lifespan of the object under certain conditions with predictive analytics, support the maintanance methods for it and manage complex connections within systems of systems. 
 
 
 For this reference kit we have chosen to model the behavior of Metal-Oxide Substrate Field Effect Transistors (MOSFETs), which are commonly used in consumer electronics and power devices. For MOSFETs the "leakage current" is a key indicator of performance. Hence understanding how the leakage current varies as a function of the input conditions is critical. 
@@ -61,9 +61,9 @@ Scikit-learn* (often referred to as sklearn) is a Python* module for machine lea
 The extension is part of the Intel® AI Analytics Toolkit (AI Kit) that provides flexibility to use machine learning tools with your existing AI packages.
 
 XGBoost* is an open source gradient boosting machine learning library. It performs well across a variety of data and problem types, so it often pushes the limits of compute resources.
-Using  XGBoost* on  Intel® CPUs takes advantage of software accelerations powered by oneAPI, without requiring any code changes. Software optimizations deliver the maximum performance for your existing hardware. This enables faster iterations during development and training, and lower latency during inference.. **Please keep in mind** that to train an  XGBoost* model using  Intel® optimizations that the 'tree_method' parameter should be set to 'hist'. 
+Using  XGBoost* on  Intel® CPUs takes advantage of software accelerations powered by oneAPI, without requiring any code changes. Software optimizations deliver the maximum performance for your existing hardware. This enables faster iterations during development and training, and lower latency during inference.. **Please keep in mind** that to train an  XGBoost* model using  Intel® optimizations, the 'tree_method' parameter should be set to 'hist'. 
 
-Modin* is a drop-in replacement for pandas, enabling data scientists to scale to distributed DataFrame processing without having to change API code. Intel® Distribution of Modin* adds optimizations to further accelerate processing on  Intel® hardware.
+Modin* is a drop-in replacement for pandas, enabling data scientists to scale to distributed DataFrame processing without having to change API code. Intel® Distribution of Modin* adds optimizations to further accelerate processing on Intel® hardware.
 
 daal4py included in Intel® oneAPI Data Analytics Library (oneDAL)* as part of the Intel® Extension for Scikit-learn*, is an easy-to-use Python* API  that provides superior performance for your machine learning algorithms and frameworks. Designed for data scientists, it provides a simple way to utilize powerful Intel® DAAL machine learning algorithms in a flexible and customizable manner. For scaling capabilities, daal4py also provides you the option to process and analyze data via batch, streaming, or distributed processing modes, allowing you to choose the option to best fit your system's needs.
 
@@ -71,7 +71,7 @@ For more details, visit the [Building a MOSFET Digital Twin for Design Explorati
 
 ## Solution Technical Details
 
-A schematic of the proposed reference architecture is shown in the following figure. The portion of the diagram enclosed in the red dashed line is the section of the workload for generating the synthetic data. The dashed green line section corresponds to the  XGBoost* optimization process.
+A schematic of the proposed reference architecture is shown in the following figure. The portion of the diagram enclosed in the red dashed line is the section of the workload for generating the synthetic data. The dashed green line section corresponds to the XGBoost* optimization process.
 
 daal4py's speedy frameworks are best known as a way to accelerate machine learning algorithms from Scikit-Learn*, however, this guide provides you with the information to use the daal4py algorithms directly.
 
@@ -88,7 +88,7 @@ The following figure describes how the leakage current is calculated from voltag
 The proposed reference solution is built primarily using an  XGBoost*   Regressor. However, separate experiments were conducted using a Linear Regressor to serve as a reference point for Mean Squared Error (MSE) values and confirm that  XGBoost* outperforms a simple Linear Regressor.
 
 ### Task 3: Tuning
-The Hyperparameter tunning happens during the training phase by getting the best parameters and best estimator form the [GridSearchCV](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html) function from [Intel® Extension for Scikit-learn*](https://www.intel.com/content/www/us/en/developer/tools/oneapi/scikit-learn.html), the estimator will return the highest score (or smallest loss if specified) on the left out data and the best parameters will gave the best results on the hold out data.
+The Hyperparameter tunning happens during the training phase by getting the best parameters and best estimator from the [GridSearchCV](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html) function from [Intel® Extension for Scikit-learn*](https://www.intel.com/content/www/us/en/developer/tools/oneapi/scikit-learn.html), the estimator will return the highest score (or smallest loss if specified) on the left out data and the best parameters will gave the best results on the hold out data.
 
 ### Task 4: Semi-supervised Learning
 In addition to the standard training/hyperparameter tuning/prediction sections of an ML pipeline, we will also build a semi-supervised learning component to enable continuous learning. Here we will start by training a conventional ML model and then use it to create pseudo-response values for non-training, synthetic data. Both the original and synthetic pseudo-response data will be combined and used to train a "semi-supervised" model.
@@ -161,9 +161,9 @@ bash Miniconda3-latest-Linux-x86_64.sh
 This reference kit uses libmamba solver for fast environment creation. The dependencies file is located in [$WORKSPACE/env/intel_env.yml](env/intel_env.yml). 
 | Packages | Version | 
 | -------- | ------- |
-| python | 3.9 |
-| intelpython3_full | 2023.2.0 |
-| modin-all | 0.23.0 | 
+| python | 3.10 |
+| intelpython3_full | 2024.0.0 |
+| modin-all | 0.24.1 | 
 
 Suggested libmamba setup
 ``` bash
@@ -260,7 +260,7 @@ python $WORKSPACE/src/MOSFET_main.py -m <training-type> -mf <model-name>.pkl -l 
 **Example 1**: \
 To run a simple  XGBoost* training, with default values: 
 ```bash
-python $WORKPSACE/src/MOSFET_main.py -m xgb
+python $WORKSPACE/src/MOSFET_main.py -m xgb
 ```
 To run a simple  XGBoost* training, with model name "xgb_model.pkl" , with logs saved in "$OUTPUT_DIR/xgb_log.log" and data length 2:
 
@@ -290,7 +290,7 @@ conda deactivate #Run line if digital_twin_intel is active
 conda env remove -n digital_twin_intel
 ```
 
-[//]: # (capture: baremetal)
+
 ```bash
 rm $OUTPUT_DIR $DATA_DIR -rf
 ```
@@ -449,7 +449,7 @@ Visit [Intel® Distribution of Modin](https://www.intel.com/content/www/us/en/de
 Visit [Python* API (daal4py) for Intel® oneAPI Data Analytics Library (oneDAL)](https://www.intel.com/content/www/us/en/developer/articles/guide/a-daal4py-introduction-and-getting-started-guide.html) for more.
 
 ## Support
-The End-to-end Document Level Sentiment Analysis team tracks both bugs and enhancement requests using [GitHub issues](https://github.com/oneapi-src/digital-twin/issues). Before submitting a suggestion or bug report, search the [DLSA GitHub issues](https://github.com/oneapi-src/digital-twin/issues) to see if your issue has already been reported.
+The End-to-end Digital Twin team tracks both bugs and enhancement requests using [GitHub issues](https://github.com/oneapi-src/digital-twin/issues). Before submitting a suggestion or bug report, search the [DLSA GitHub issues](https://github.com/oneapi-src/digital-twin/issues) to see if your issue has already been reported.
 
 
 
